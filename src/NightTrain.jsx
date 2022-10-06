@@ -145,6 +145,7 @@ export default function NightTrain() {
       camera={{ position: [-15, 15, 18], fov: 35 }}
       gl={{ alpha: false }}
     >
+      
       <fog attach="fog" args={["#17171b", 30, 40]} />
       <color attach="background" args={["#17171b"]} />
       <directionalLight
@@ -172,7 +173,6 @@ export default function NightTrain() {
         </ScrollControls>
         <mesh position={[0, -1.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <ambientLight intensity={0.25} />
-
           <planeGeometry args={[50, 50]} />
           <MeshReflectorMaterial
             blur={[400, 100]}
