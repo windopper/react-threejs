@@ -4,11 +4,12 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import './App.css'
 import NightTrain from './NightTrain';
 import Test1 from './containers/Test1';
+import Stack from './containers/Stack';
 
 function App() {
   return (
     <div className='App'>
-      <Test1 />
+      <Stack />
     </div>
   );
 }
