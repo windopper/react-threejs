@@ -63,16 +63,28 @@ const getDetached = ({
 
   if (dir === 1) {
     // x축 기준
-    const curStackEdgeXCoordNearCenter = curCoords.x - curXLength / 2; // 원점으로 부터 가장 가까운 현재 스택의 모서리 좌표
-    const prevStackEdgeXCoordFarCenter = prevCoords.x + curXLength / 2; // 원점으로부터 가장 먼 이전 스택의 모서리 좌표
+    const curStackEdgeXCoordNearCenter =
+      prevCoords.x < curCoords.x
+        ? curCoords.x - curXLength / 2
+        : curCoords.x + curXLength / 2; // 원점으로 부터 가장 가까운 현재 스택의 모서리 좌표
+    const prevStackEdgeXCoordFarCenter =
+      prevCoords.x < curCoords.x
+        ? prevCoords.x + prevXLength / 2
+        : prevCoords.x - prevXLength / 2; // 원점으로부터 가장 먼 이전 스택의 모서리 좌표
     const diff = curStackEdgeXCoordNearCenter - prevStackEdgeXCoordFarCenter; // 이 둘을 뺌으로써 현재 블럭과 이전 블럭이 겹쳐있는 지 여부를 체크할 수 있다.
-    isOnPreviousStack = diff <= 0;
+    isOnPreviousStack = prevCoords.x < curCoords.x ? diff <= 0 : diff >= 0;
   } else {
     // z축 기준
-    const curStackEdgeZCoordNearCenter = curCoords.z - curZLength / 2;
-    const prevStackEdgeZCoordFarCenter = prevCoords.z + curZLength / 2;
+    const curStackEdgeZCoordNearCenter =
+      prevCoords.z < curCoords.z
+        ? curCoords.z - curZLength / 2
+        : curCoords.z + curZLength / 2;
+    const prevStackEdgeZCoordFarCenter =
+      prevCoords.z < curCoords.z
+        ? prevCoords.z + prevZLength / 2
+        : prevCoords.z - prevZLength / 2;
     const diff = curStackEdgeZCoordNearCenter - prevStackEdgeZCoordFarCenter;
-    isOnPreviousStack = diff <= 0;
+    isOnPreviousStack = prevCoords.z < curCoords.z ? diff <= 0 : diff >= 0;
   }
   //console.log(isOnPreviousStack);
   return {
@@ -175,7 +187,7 @@ const StackItem = React.forwardRef(
 
 const MemoizedStackItem = React.memo(StackItem);
 
-function Stacks() {
+function Stacks({ done, setDone }) {
   const speed = 0.04;
 
   const camera = useThree((state) => state.camera);
@@ -196,7 +208,6 @@ function Stacks() {
     detachedShape: [0, 0, 0],
     detachedPosition: [0, 0, 0],
   });
-
   const [stacks, setStacks] = useState([]); // 스택 위치 어레이
 
   //console.log(stacks);
@@ -236,7 +247,8 @@ function Stacks() {
       detachedShape: [0, 0, 0],
       detachedPosition: [0, 0, 0],
     };
-    camera.position.set(-2, 2.2, -2);
+    // camera.position.lerp(new Vector3(-3, 10, -3), 1);
+    camera.position.set(-2, 2.2, -2); 
     camera.lookAt(new Vector3(0, stackHeight.current, 0)); // 카메라 위치 초기화
 
     //console.log('In Initialize Function:', previousStackRef, latestStackRef, baseStackRef)
@@ -264,8 +276,17 @@ function Stacks() {
         dir: direction.current,
       });
 
-      const { remainLoc, remainShape, fallingLoc, fallingShape } =
-        detachedCoords;
+      const {
+        remainLoc,
+        remainShape,
+        fallingLoc,
+        fallingShape,
+        isOnPreviousStack,
+      } = detachedCoords;
+
+      if (!isOnPreviousStack) {
+        setDone(true);
+      }
 
       stackRef.current.position = [
         remainLoc[0],
@@ -364,6 +385,11 @@ function Stacks() {
 }
 
 function Stack() {
+  const [done, setDone] = useState(false);
+  useEffect(() => {
+    setDone(false);
+  }, [done]);
+
   return (
     <Canvas
       camera={{
@@ -386,7 +412,7 @@ function Stack() {
         />
       </directionalLight>
       <ambientLight intensity={0.4} />
-      <Stacks />
+      {!done && <Stacks done={done} setDone={setDone} />}
       <mesh position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ambientLight intensity={0.5} />
         <planeGeometry args={[50, 50]} />
