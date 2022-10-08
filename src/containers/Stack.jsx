@@ -1,4 +1,9 @@
-import { OrbitControls, useCamera, MeshReflectorMaterial, Environment } from "@react-three/drei";
+import {
+  OrbitControls,
+  useCamera,
+  MeshReflectorMaterial,
+  Environment,
+} from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Vector3 } from "three";
@@ -54,19 +59,20 @@ const getDetached = ({
       ? Math.abs(curCoords.z - prevCoords.z)
       : Math.abs(curCoords.x - prevCoords.x);
 
-  let isOnPreviousStack = true // 현재 블럭이 이전 블럭 위에 걸쳐져 있는지?
+  let isOnPreviousStack = true; // 현재 블럭이 이전 블럭 위에 걸쳐져 있는지?
 
-  if(dir === 1) { // x축 기준
-    const curStackEdgeXCoordNearCenter = curCoords.x - curXLength / 2 // 원점으로 부터 가장 가까운 현재 스택의 모서리 좌표
-    const prevStackEdgeXCoordFarCenter = prevCoords.x + curXLength / 2 // 원점으로부터 가장 먼 이전 스택의 모서리 좌표
+  if (dir === 1) {
+    // x축 기준
+    const curStackEdgeXCoordNearCenter = curCoords.x - curXLength / 2; // 원점으로 부터 가장 가까운 현재 스택의 모서리 좌표
+    const prevStackEdgeXCoordFarCenter = prevCoords.x + curXLength / 2; // 원점으로부터 가장 먼 이전 스택의 모서리 좌표
     const diff = curStackEdgeXCoordNearCenter - prevStackEdgeXCoordFarCenter; // 이 둘을 뺌으로써 현재 블럭과 이전 블럭이 겹쳐있는 지 여부를 체크할 수 있다.
-    isOnPreviousStack = diff <= 0
-  }
-  else { // z축 기준
-    const curStackEdgeZCoordNearCenter = curCoords.z - curZLength / 2 
-    const prevStackEdgeZCoordFarCenter = prevCoords.z + curZLength / 2
+    isOnPreviousStack = diff <= 0;
+  } else {
+    // z축 기준
+    const curStackEdgeZCoordNearCenter = curCoords.z - curZLength / 2;
+    const prevStackEdgeZCoordFarCenter = prevCoords.z + curZLength / 2;
     const diff = curStackEdgeZCoordNearCenter - prevStackEdgeZCoordFarCenter;
-    isOnPreviousStack = diff <= 0
+    isOnPreviousStack = diff <= 0;
   }
   //console.log(isOnPreviousStack);
   return {
@@ -77,13 +83,13 @@ const getDetached = ({
       dir === 0 ? curZLength - diff : curZLength,
     ],
     remainLoc: [
-      prevCoords.x < curCoords.x ? 
-      (prevCoords.x + prevXLength / 2 + (curCoords.x - curXLength / 2)) / 2 :
-      (prevCoords.x - prevXLength / 2 + (curCoords.x + curXLength / 2)) / 2,
+      prevCoords.x <= curCoords.x
+        ? (prevCoords.x + prevXLength / 2 + (curCoords.x - curXLength / 2)) / 2
+        : (prevCoords.x - prevXLength / 2 + (curCoords.x + curXLength / 2)) / 2,
       curCoords.y,
-      prevCoords.z < curCoords.z ?
-      (prevCoords.z + prevZLength / 2 + (curCoords.z - curZLength / 2)) / 2 :
-      (prevCoords.z - prevZLength / 2 + (curCoords.z + curZLength / 2)) / 2,
+      prevCoords.z <= curCoords.z
+        ? (prevCoords.z + prevZLength / 2 + (curCoords.z - curZLength / 2)) / 2
+        : (prevCoords.z - prevZLength / 2 + (curCoords.z + curZLength / 2)) / 2,
     ],
     fallingShape: [
       dir === 1 ? diff : curXLength,
@@ -91,19 +97,36 @@ const getDetached = ({
       dir === 0 ? diff : curZLength,
     ],
     fallingLoc: [
-      prevCoords.x < curCoords.x ?
-      (prevCoords.x + prevXLength / 2 + (curCoords.x + curXLength / 2)) / 2 :
-      (prevCoords.x - prevXLength / 2 + (curCoords.x - curXLength / 2)) / 2,
+      dir === 1
+        ? prevCoords.x <= curCoords.x
+          ? (prevCoords.x + prevXLength / 2 + (curCoords.x + curXLength / 2)) /
+            2
+          : (prevCoords.x - prevXLength / 2 + (curCoords.x - curXLength / 2)) /
+            2
+        : curCoords.x,
       curCoords.y,
-      prevCoords.z < curCoords.z ?
-      (prevCoords.z + prevZLength / 2 + (curCoords.z + curZLength / 2)) / 2 :
-      (prevCoords.z - prevZLength / 2 + (curCoords.z - curZLength / 2)) / 2,
+      dir === 0
+        ? prevCoords.z <= curCoords.z
+          ? (prevCoords.z + prevZLength / 2 + (curCoords.z + curZLength / 2)) /
+            2
+          : (prevCoords.z - prevZLength / 2 + (curCoords.z - curZLength / 2)) /
+            2
+        : curCoords.z,
     ],
   };
 };
 
 const StackItem = React.forwardRef(
-  ({ direction, position, shape = [1, 0.2, 1], detachedPosition, detachedShape }, ref) => {
+  (
+    {
+      direction,
+      position,
+      shape = [1, 0.2, 1],
+      detachedPosition,
+      detachedShape,
+    },
+    ref
+  ) => {
     const color = useRef(randHex());
     const fallingMeshRef = useRef(null);
     const velocity = useRef(0);
@@ -120,17 +143,16 @@ const StackItem = React.forwardRef(
       ref.current.visible = true;
     }, []);
 
-
-    useFrame(() => { // 중력
-      if(!fallingMeshRef.current) return;
-      if(fallingMeshRef.current.position.y > -50) {
-        velocity.current = velocity.current + 0.0005
-      fallingMeshRef.current.position.y -= velocity.current
-      } 
-      else if(fallingMeshRef.current.visible) {
+    useFrame(() => {
+      // 중력
+      if (!fallingMeshRef.current) return;
+      if (fallingMeshRef.current.position.y > -50) {
+        velocity.current = velocity.current + 0.0005;
+        fallingMeshRef.current.position.y -= velocity.current;
+      } else if (fallingMeshRef.current.visible) {
         fallingMeshRef.current.visible = false;
       }
-    })
+    });
 
     //console.log(detachedPosition, detachedShape)
 
@@ -196,32 +218,30 @@ function Stacks() {
     // 마지막 스택 아이템 프레임 마다 움직임
     if (!latestStackRef.current || !previousStackRef.current) return;
     //console.log('isMove?')
-      if(direction.current === 1) {
-        latestStackRef.current.position.x -= speed;
-      }
-      else latestStackRef.current.position.z -= speed;
+    if (direction.current === 1) {
+      latestStackRef.current.position.x -= speed;
+    } else latestStackRef.current.position.z -= speed;
   });
 
   const initialize = () => {
-
     previousStackRef.current = null;
     latestStackRef.current = null;
-    latestStackRef.current = baseStackRef.current
+    latestStackRef.current = baseStackRef.current;
     isStarting.current = false;
-    direction.current = 0
-    stackHeight.current = 0.2
+    direction.current = 0;
+    stackHeight.current = 0.2;
     stackRef.current = {
       shape: [1, 0.2, 1],
       position: [0, 0, 0],
       detachedShape: [0, 0, 0],
       detachedPosition: [0, 0, 0],
-    }
-    camera.position.set(-2, 2.2, -2)
+    };
+    camera.position.set(-2, 2.2, -2);
     camera.lookAt(new Vector3(0, stackHeight.current, 0)); // 카메라 위치 초기화
 
     //console.log('In Initialize Function:', previousStackRef, latestStackRef, baseStackRef)
-    setStacks(() => [])
-  }
+    setStacks(() => []);
+  };
 
   const setStarting = (start) => {
     isStarting.current = start;
@@ -244,40 +264,45 @@ function Stacks() {
         dir: direction.current,
       });
 
-      const { remainLoc, remainShape, fallingLoc, fallingShape } = detachedCoords;
+      const { remainLoc, remainShape, fallingLoc, fallingShape } =
+        detachedCoords;
 
-      stackRef.current.position = [remainLoc[0], stackHeight.current, remainLoc[2]];
-      stackRef.current.shape = remainShape
+      stackRef.current.position = [
+        remainLoc[0],
+        stackHeight.current,
+        remainLoc[2],
+      ];
+      stackRef.current.shape = remainShape;
       //stackRef.current.detachedPosition = fallingLoc;
       //stackRef.current.detachedShape = fallingShape;
       detachedPosition = fallingLoc;
       detachedShape = fallingShape;
     } else {
-      stackRef.current.position = [0, stackHeight.current, 0]  // 다음 스택 위치 업데이트
+      stackRef.current.position = [0, stackHeight.current, 0]; // 다음 스택 위치 업데이트
     }
 
-    previousStackRef.current = latestStackRef.current // 현재 ref를 이전 ref로 넘김
-    
-    if(stacks.length >= 1) {
+    previousStackRef.current = latestStackRef.current; // 현재 ref를 이전 ref로 넘김
 
-      const len = stacks.length
-      const prev = {...stacks[len - 1]};
-      
-      prev.shape = stackRef.current.shape
-      prev.position = [stackRef.current.position[0], prev.position[1], stackRef.current.position[2]]
-      prev.detachedPosition = detachedPosition
-      prev.detachedShape = detachedShape
+    if (stacks.length >= 1) {
+      const len = stacks.length;
+      const prev = { ...stacks[len - 1] };
+
+      prev.shape = stackRef.current.shape;
+      prev.position = [
+        stackRef.current.position[0],
+        prev.position[1],
+        stackRef.current.position[2],
+      ];
+      prev.detachedPosition = detachedPosition;
+      prev.detachedShape = detachedShape;
 
       setStacks((v) => [
         ...v.slice(0, -1),
-        {...prev},
-        {...stackRef.current}
+        { ...prev },
+        { ...stackRef.current },
       ]);
-    }
-    else {
-      setStacks((v) => [
-        {...stackRef.current}
-      ]); 
+    } else {
+      setStacks((v) => [{ ...stackRef.current }]);
     } // 스택 어레이 업데이트
 
     onMoveCamera(); // 카메라 이동
@@ -285,7 +310,7 @@ function Stacks() {
     direction.current = direction.current === 0 ? 1 : 0; // 다음 스택 방향 업데이트
 
     //console.log('In Next Stack Function:', previousStackRef, latestStackRef, baseStackRef)
-  };
+  }
 
   const onKeyDown = ({ key }) => {
     if (key === " ") {
@@ -294,7 +319,7 @@ function Stacks() {
     } else if (key === "k") {
       // 'k' 누를 시 새로운 스택 생성 : 테스트용
       if (isStarting.current) createNextStackItem();
-    } else if (key === 'r') {
+    } else if (key === "r") {
       initialize();
     }
   };
@@ -314,7 +339,7 @@ function Stacks() {
 
   useEffect(() => {
     // 처음 캔버스 렌더될 때 초기화 이펙트
-    initialize()
+    initialize();
   }, []);
 
   return (
@@ -366,16 +391,16 @@ function Stack() {
         <ambientLight intensity={0.5} />
         <planeGeometry args={[50, 50]} />
         <MeshReflectorMaterial
-            blur={[400, 100]}
-            resolution={1024}
-            mixBlur={1}
-            mixStrength={15}
-            depthScale={1}
-            minDepthThreshold={0.85}
-            color="#2e263d"
-            metalness={0.6}
-            roughness={1}
-          />
+          blur={[400, 100]}
+          resolution={1024}
+          mixBlur={1}
+          mixStrength={15}
+          depthScale={1}
+          minDepthThreshold={0.85}
+          color="#2e263d"
+          metalness={0.6}
+          roughness={1}
+        />
       </mesh>
       <Environment preset="dawn" />
     </Canvas>
