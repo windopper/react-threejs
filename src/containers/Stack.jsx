@@ -77,9 +77,13 @@ const getDetached = ({
       dir === 0 ? curZLength - diff : curZLength,
     ],
     remainLoc: [
-      (prevCoords.x + prevXLength / 2 + (curCoords.x - curXLength / 2)) / 2,
+      prevCoords.x < curCoords.x ? 
+      (prevCoords.x + prevXLength / 2 + (curCoords.x - curXLength / 2)) / 2 :
+      (prevCoords.x - prevXLength / 2 + (curCoords.x + curXLength / 2)) / 2,
       curCoords.y,
-      (prevCoords.z + prevZLength / 2 + (curCoords.z - curZLength / 2)) / 2,
+      prevCoords.z < curCoords.z ?
+      (prevCoords.z + prevZLength / 2 + (curCoords.z - curZLength / 2)) / 2 :
+      (prevCoords.z - prevZLength / 2 + (curCoords.z + curZLength / 2)) / 2,
     ],
     fallingShape: [
       dir === 1 ? diff : curXLength,
@@ -87,9 +91,13 @@ const getDetached = ({
       dir === 0 ? diff : curZLength,
     ],
     fallingLoc: [
-      (prevCoords.x + prevXLength / 2 + (curCoords.x + curXLength / 2)) / 2,
+      prevCoords.x < curCoords.x ?
+      (prevCoords.x + prevXLength / 2 + (curCoords.x + curXLength / 2)) / 2 :
+      (prevCoords.x - prevXLength / 2 + (curCoords.x - curXLength / 2)) / 2,
       curCoords.y,
-      (prevCoords.z + prevZLength / 2 + (curCoords.z + curZLength / 2)) / 2,
+      prevCoords.z < curCoords.z ?
+      (prevCoords.z + prevZLength / 2 + (curCoords.z + curZLength / 2)) / 2 :
+      (prevCoords.z - prevZLength / 2 + (curCoords.z - curZLength / 2)) / 2,
     ],
   };
 };
