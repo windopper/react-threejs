@@ -3,8 +3,10 @@ import {
   useCamera,
   MeshReflectorMaterial,
   Environment,
+  Text,
+  Stars,
 } from "@react-three/drei";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Canvas, useFrame, useThree, extend } from "@react-three/fiber";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Vector3 } from "three";
 import { Physics, useBox, usePlane } from "@react-three/cannon";
@@ -129,6 +131,20 @@ const getDetached = ({
   };
 };
 
+const Text2D = () => {
+  return (
+    <text
+      position-z={-180}
+      text="hihihihi"
+      anchorX="center"
+      anchorY="middle"
+      rotation={[0, 0, 0, 0]}
+    >
+      <meshPhongMaterial attach="material" color={"red"} />
+    </text>
+  );
+};
+
 const DetachedStackItem = ({ detachedPosition, detachedShape, color }) => {
   const [fallingMeshRef, api] = useBox(() => ({
     mass: 150,
@@ -154,15 +170,6 @@ const DetachedStackItem = ({ detachedPosition, detachedShape, color }) => {
         opacity={1}
         transparent={true}
       />
-    </mesh>
-  );
-};
-
-const RemainedStackItem = ({ remainedPosition, remainedShape, color }) => {
-  return (
-    <mesh position={remainedPosition}>
-      <boxGeometry args={remainedShape} />
-      <meshLambertMaterial color={color} />
     </mesh>
   );
 };
@@ -230,6 +237,7 @@ function Stacks({ done, setDone }) {
   const baseStackRef = useRef();
   const latestStackRef = useRef();
   const previousStackRef = useRef();
+  const textRef = useRef();
 
   const direction = useRef(0); // 스택이 날아오는 방향 0: z축 이동, 1: x축 이동 두가지임
   const stackHeight = useRef(0.2); // 스택이 쌓이는 높이
@@ -243,8 +251,10 @@ function Stacks({ done, setDone }) {
       // 카메라가 움직일 때 프레임 마다 카메라 높이 증가
       if (camera.position.y < stackHeight.current + 2) {
         camera.position.y += 0.02;
+        textRef.current.position.y += 0.02;
       } else {
         camera.position.y = stackHeight.current + 2;
+        textRef.current.position.y = stackHeight.current;
         isCameraMoving.current = false;
       }
       camera.updateProjectionMatrix();
@@ -261,24 +271,10 @@ function Stacks({ done, setDone }) {
   });
 
   const initialize = () => {
-    // previousStackRef.current = null;
-    // latestStackRef.current = null;
     latestStackRef.current = baseStackRef.current;
-    // isStarting.current = false;
-    // direction.current = 0;
-    // stackHeight.current = 0.2;
-    // stackRef.current = {
-    //   shape: [1, 0.2, 1],
-    //   position: [0, 0, 0],
-    //   detachedShape: [0, 0, 0],
-    //   detachedPosition: [0, 0, 0],
-    // };
-    // camera.position.lerp(new Vector3(-3, 10, -3), 1);
+
     camera.position.set(-2, 2.2, -2);
     camera.lookAt(new Vector3(0, stackHeight.current, 0)); // 카메라 위치 초기화
-
-    //console.log('In Initialize Function:', previousStackRef, latestStackRef, baseStackRef)
-    // setStacks(() => []);
   };
 
   const setStarting = (start) => {
@@ -405,6 +401,17 @@ function Stacks({ done, setDone }) {
 
   return (
     <>
+      <Text
+        color="white"
+        anchorX="center"
+        anchorY="middle"
+        fontSize={0.15}
+        position={[0.5, 0.2, -0.8]}
+        rotation={[Math.PI / 4, Math.PI * 1.25, Math.PI / 4]}
+        ref={textRef}
+      >
+        {stacks.length}
+      </Text>
       <mesh position={[0, 0, 0]} ref={baseStackRef}>
         <boxGeometry args={[1, 0.2, 1]} />
         <meshLambertMaterial color={"#343434"} />
