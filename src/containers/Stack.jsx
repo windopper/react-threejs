@@ -3,10 +3,13 @@ import {
   useCamera,
   MeshReflectorMaterial,
   Environment,
+  Text,
+  Stars,
 } from "@react-three/drei";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Canvas, useFrame, useThree, extend } from "@react-three/fiber";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Vector3 } from "three";
+import { Physics, useBox, usePlane } from "@react-three/cannon";
 
 const hexValues = [
   "0",
@@ -128,6 +131,49 @@ const getDetached = ({
   };
 };
 
+const Text2D = () => {
+  return (
+    <text
+      position-z={-180}
+      text="hihihihi"
+      anchorX="center"
+      anchorY="middle"
+      rotation={[0, 0, 0, 0]}
+    >
+      <meshPhongMaterial attach="material" color={"red"} />
+    </text>
+  );
+};
+
+const DetachedStackItem = ({ detachedPosition, detachedShape, color }) => {
+  const [fallingMeshRef, api] = useBox(() => ({
+    mass: 150,
+    position: detachedPosition,
+  }));
+
+  const materialRef = useRef();
+
+  useFrame(() => {
+    if (materialRef.current.opacity > 0) {
+      materialRef.current.opacity -= 0.005;
+    } else {
+      fallingMeshRef.current.visible = false;
+    }
+  });
+
+  return (
+    <mesh ref={fallingMeshRef} castShadow receiveShadow>
+      <boxGeometry args={detachedShape} />
+      <meshLambertMaterial
+        color={color}
+        ref={materialRef}
+        opacity={1}
+        transparent={true}
+      />
+    </mesh>
+  );
+};
+
 const StackItem = React.forwardRef(
   (
     {
@@ -140,8 +186,7 @@ const StackItem = React.forwardRef(
     ref
   ) => {
     const color = useRef(randHex());
-    const fallingMeshRef = useRef(null);
-    const velocity = useRef(0);
+
     useEffect(() => {
       if (!ref.current) return;
       // console.log(ref.current);
@@ -155,28 +200,22 @@ const StackItem = React.forwardRef(
       ref.current.visible = true;
     }, []);
 
-    useFrame(() => {
-      // 중력
-      if (!fallingMeshRef.current) return;
-      if (fallingMeshRef.current.position.y > -50) {
-        velocity.current = velocity.current + 0.0005;
-        fallingMeshRef.current.position.y -= velocity.current;
-      } else if (fallingMeshRef.current.visible) {
-        fallingMeshRef.current.visible = false;
-      }
-    });
-
-    //console.log(detachedPosition, detachedShape)
-
     return (
       <>
         {detachedPosition && detachedShape && (
-          <mesh position={detachedPosition} ref={fallingMeshRef}>
-            <boxGeometry args={detachedShape} />
-            <meshLambertMaterial color={color.current} />
-          </mesh>
+          <DetachedStackItem
+            color={color.current}
+            detachedPosition={detachedPosition}
+            detachedShape={detachedShape}
+          />
         )}
-        <mesh position={position} ref={ref} visible={false}>
+        <mesh
+          position={position}
+          ref={ref}
+          visible={false}
+          castShadow
+          receiveShadow
+        >
           <boxGeometry args={shape} />
           <meshLambertMaterial color={color.current} />
         </mesh>
@@ -198,16 +237,11 @@ function Stacks({ done, setDone }) {
   const baseStackRef = useRef();
   const latestStackRef = useRef();
   const previousStackRef = useRef();
+  const textRef = useRef();
 
   const direction = useRef(0); // 스택이 날아오는 방향 0: z축 이동, 1: x축 이동 두가지임
   const stackHeight = useRef(0.2); // 스택이 쌓이는 높이
 
-  const stackRef = useRef({
-    shape: [1, 0.2, 1],
-    position: [0, 0, 0],
-    detachedShape: [0, 0, 0],
-    detachedPosition: [0, 0, 0],
-  });
   const [stacks, setStacks] = useState([]); // 스택 위치 어레이
 
   //console.log(stacks);
@@ -217,8 +251,10 @@ function Stacks({ done, setDone }) {
       // 카메라가 움직일 때 프레임 마다 카메라 높이 증가
       if (camera.position.y < stackHeight.current + 2) {
         camera.position.y += 0.02;
+        textRef.current.position.y += 0.02;
       } else {
         camera.position.y = stackHeight.current + 2;
+        textRef.current.position.y = stackHeight.current;
         isCameraMoving.current = false;
       }
       camera.updateProjectionMatrix();
@@ -235,24 +271,10 @@ function Stacks({ done, setDone }) {
   });
 
   const initialize = () => {
-    previousStackRef.current = null;
-    latestStackRef.current = null;
     latestStackRef.current = baseStackRef.current;
-    isStarting.current = false;
-    direction.current = 0;
-    stackHeight.current = 0.2;
-    stackRef.current = {
-      shape: [1, 0.2, 1],
-      position: [0, 0, 0],
-      detachedShape: [0, 0, 0],
-      detachedPosition: [0, 0, 0],
-    };
-    // camera.position.lerp(new Vector3(-3, 10, -3), 1);
-    camera.position.set(-2, 2.2, -2); 
-    camera.lookAt(new Vector3(0, stackHeight.current, 0)); // 카메라 위치 초기화
 
-    //console.log('In Initialize Function:', previousStackRef, latestStackRef, baseStackRef)
-    setStacks(() => []);
+    camera.position.set(-2, 2.2, -2);
+    camera.lookAt(new Vector3(0, stackHeight.current, 0)); // 카메라 위치 초기화
   };
 
   const setStarting = (start) => {
@@ -263,6 +285,8 @@ function Stacks({ done, setDone }) {
     // 다음 스택 블럭 소환
     let detachedPosition = null;
     let detachedShape = null;
+    let remainedPosition = [0, 0, 0];
+    let remainedShape = [1, 0.2, 1];
 
     if (previousStackRef.current && latestStackRef.current) {
       // 이전 스택 블럭과 다음 스택 블럭을 통해 남은 스택 블럭 계산
@@ -288,18 +312,12 @@ function Stacks({ done, setDone }) {
         setDone(true);
       }
 
-      stackRef.current.position = [
-        remainLoc[0],
-        stackHeight.current,
-        remainLoc[2],
-      ];
-      stackRef.current.shape = remainShape;
-      //stackRef.current.detachedPosition = fallingLoc;
-      //stackRef.current.detachedShape = fallingShape;
+      remainedPosition = [remainLoc[0], stackHeight.current, remainLoc[2]];
+      remainedShape = remainShape;
       detachedPosition = fallingLoc;
       detachedShape = fallingShape;
     } else {
-      stackRef.current.position = [0, stackHeight.current, 0]; // 다음 스택 위치 업데이트
+      remainedPosition = [0, stackHeight.current, 0]; // 다음 스택 위치 업데이트
     }
 
     previousStackRef.current = latestStackRef.current; // 현재 ref를 이전 ref로 넘김
@@ -308,11 +326,11 @@ function Stacks({ done, setDone }) {
       const len = stacks.length;
       const prev = { ...stacks[len - 1] };
 
-      prev.shape = stackRef.current.shape;
+      prev.shape = remainedShape;
       prev.position = [
-        stackRef.current.position[0],
+        remainedPosition[0],
         prev.position[1],
-        stackRef.current.position[2],
+        remainedPosition[2],
       ];
       prev.detachedPosition = detachedPosition;
       prev.detachedShape = detachedShape;
@@ -320,10 +338,22 @@ function Stacks({ done, setDone }) {
       setStacks((v) => [
         ...v.slice(0, -1),
         { ...prev },
-        { ...stackRef.current },
+        {
+          position: remainedPosition,
+          shape: remainedShape,
+          detachedPosition: null,
+          detachedShape: null,
+        },
       ]);
     } else {
-      setStacks((v) => [{ ...stackRef.current }]);
+      setStacks(() => [
+        {
+          position: remainedPosition,
+          shape: remainedShape,
+          detachedPosition,
+          detachedShape,
+        },
+      ]);
     } // 스택 어레이 업데이트
 
     onMoveCamera(); // 카메라 이동
@@ -345,6 +375,10 @@ function Stacks({ done, setDone }) {
     }
   };
 
+  const onMouseClick = () => {
+    createNextStackItem();
+  };
+
   const onMoveCamera = () => {
     // 카메라 움직임 활성화 마지막 스택 블럭 위치까지 따라감
     if (!camera) return;
@@ -353,10 +387,12 @@ function Stacks({ done, setDone }) {
 
   useEffect(() => {
     window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("mousedown", onMouseClick);
     return () => {
       window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("mousedown", onMouseClick);
     };
-  }, [onKeyDown]);
+  }, [onKeyDown, onMouseClick]);
 
   useEffect(() => {
     // 처음 캔버스 렌더될 때 초기화 이펙트
@@ -365,6 +401,17 @@ function Stacks({ done, setDone }) {
 
   return (
     <>
+      <Text
+        color="white"
+        anchorX="center"
+        anchorY="middle"
+        fontSize={0.15}
+        position={[0.5, 0.2, -0.8]}
+        rotation={[Math.PI / 4, Math.PI * 1.25, Math.PI / 4]}
+        ref={textRef}
+      >
+        {stacks.length}
+      </Text>
       <mesh position={[0, 0, 0]} ref={baseStackRef}>
         <boxGeometry args={[1, 0.2, 1]} />
         <meshLambertMaterial color={"#343434"} />
@@ -384,8 +431,40 @@ function Stacks({ done, setDone }) {
   );
 }
 
+function Plane(props) {
+  const [planeRef] = usePlane(() => ({
+    position: [0, 0, 0],
+    rotation: [-Math.PI / 2, 0, 0],
+    ...props,
+  }));
+
+  return (
+    <mesh
+      ref={planeRef}
+      rotation={[-Math.PI / 2, 0, 0]}
+      castShadow
+      receiveShadow
+    >
+      <ambientLight intensity={0.5} />
+      <planeGeometry args={[50, 50]} />
+      <MeshReflectorMaterial
+        blur={[400, 100]}
+        color="#2e263d"
+        metalness={0.6}
+        roughness={1}
+        resolution={1024}
+        mixBlur={1}
+        mixStrength={15}
+        depthScale={1}
+        minDepthThreshold={0.85}
+      />
+    </mesh>
+  );
+}
+
 function Stack() {
   const [done, setDone] = useState(false);
+
   useEffect(() => {
     setDone(false);
   }, [done]);
@@ -412,22 +491,10 @@ function Stack() {
         />
       </directionalLight>
       <ambientLight intensity={0.4} />
-      {!done && <Stacks done={done} setDone={setDone} />}
-      <mesh position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ambientLight intensity={0.5} />
-        <planeGeometry args={[50, 50]} />
-        <MeshReflectorMaterial
-          blur={[400, 100]}
-          resolution={1024}
-          mixBlur={1}
-          mixStrength={15}
-          depthScale={1}
-          minDepthThreshold={0.85}
-          color="#2e263d"
-          metalness={0.6}
-          roughness={1}
-        />
-      </mesh>
+      <Physics>
+        {!done && <Stacks done={done} setDone={setDone} />}
+        <Plane />
+      </Physics>
       <Environment preset="dawn" />
     </Canvas>
   );
